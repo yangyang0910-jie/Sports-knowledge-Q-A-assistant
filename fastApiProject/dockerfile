@@ -1,0 +1,61 @@
+# ============ 构建阶段【搭建环境】 ============
+FROM python:3.12.14 AS builder
+
+WORKDIR /app
+
+# 1. 创建虚拟环境
+RUN python -m venv /opt/venv
+
+# 2. 激活虚拟环境
+ENV PATH="/opt/venv/bin:$PATH"
+
+# 3. 复制依赖文件，利用 Docker 缓存机制
+COPY requirements.txt .
+
+# 4. 正常安装依赖（让 pip 自动解析全部依赖，避免缺包）
+# 第一步：单独安装 PyTorch CPU 版
+RUN pip install --no-cache-dir torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 \
+        --index-url https://download.pytorch.org/whl/cpu
+
+# 第二步：安装 requirements.txt，带上 PyTorch 源避免冲突
+RUN pip install --no-cache-dir -r requirements.txt \
+        -i https://pypi.tuna.tsinghua.edu.cn/simple \
+        --extra-index-url https://download.pytorch.org/whl/cpu
+
+# ============ 运行阶段【跑项目】 ============
+FROM python:3.12.14
+
+# 1. 创建非 root 用户，提升安全性
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
+WORKDIR /app
+
+# 2. 创建 HuggingFace 缓存目录，并赋予 appuser 读写权限
+RUN mkdir -p /home/appuser/.cache/huggingface && \
+    chown -R appuser:appuser /home/appuser
+
+# 3. 设置环境变量，指定缓存目录
+ENV TRANSFORMERS_CACHE=/home/appuser/.cache/huggingface
+ENV HF_HOME=/home/appuser/.cache/huggingface
+
+# 4. 从构建阶段复制已经装好依赖的虚拟环境
+COPY --from=builder /opt/venv /opt/venv
+
+# 5. 复制项目代码
+COPY . .
+
+# 6. 激活虚拟环境
+ENV PATH="/opt/venv/bin:$PATH"
+
+# 7. 切换到非 root 用户
+USER appuser
+
+# 8. 暴露端口
+EXPOSE 8000
+
+# 9. 健康检查
+HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+
+# 10. 启动命令
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

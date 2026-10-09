@@ -1,0 +1,38 @@
+# ===== 必须忽略：敏感信息 =====
+.env
+.env.*
+*.env
+
+# ===== Python 运行产物 =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# ===== PyCharm / JetBrains 配置 =====
+.idea/
+
+# ===== 虚拟环境 =====
+venv/
+.venv/
+env/
+
+# ===== 模型 / 大文件目录（按需调整）=====
+models/
+
+# ===== 向量数据库数据（按需调整）=====
+sports_chroma/
+
+# ===== 日志 =====
+*.log
+logs/
+
+# ===== 系统文件 =====
+.DS_Store
+Thumbs.db
+
+# ===== 测试与工具缓存 =====
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
